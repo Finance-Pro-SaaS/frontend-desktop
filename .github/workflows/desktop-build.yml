@@ -1,0 +1,180 @@
+name: Finance Pro Desktop Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+env:
+  # URL du backend en production. Les apps desktop installées chez les
+  # utilisateurs n'ont PAS de serveur local — sans ceci le build utilise le
+  # défaut du code (http://localhost:8000/api) et rien ne fonctionne une fois
+  # installé.
+  VITE_API_BASE_URL: https://ton-backend.onrender.com/api
+
+jobs:
+  build-windows:
+    name: Build Windows Desktop
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout frontend-desktop
+        uses: actions/checkout@v4
+        with:
+          path: frontend-desktop
+
+      # frontend-web est maintenant un dépôt séparé : on le récupère à côté
+      # pour que les chemins relatifs (../frontend-web/dist) restent valides.
+      - name: Checkout frontend-web
+        uses: actions/checkout@v4
+        with:
+          repository: Finance-Pro-SaaS/frontend-web
+          path: frontend-web
+          # Nécessaire uniquement si frontend-web est un dépôt PRIVÉ : le
+          # GITHUB_TOKEN par défaut ne voit que le dépôt courant. Crée un
+          # Personal Access Token (scope repo, lecture) et ajoute-le en
+          # secret nommé CROSS_REPO_PAT sur CE dépôt (frontend-desktop),
+          # Settings > Secrets and variables > Actions.
+          token: ${{ secrets.CROSS_REPO_PAT }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install frontend-web dependencies
+        working-directory: frontend-web
+        run: npm ci
+
+      - name: Build frontend-web
+        working-directory: frontend-web
+        run: npm run build
+
+      - name: Verify frontend-web build
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "frontend-web/dist")) {
+            Write-Error "frontend-web/dist was not generated."
+            exit 1
+          }
+          Get-ChildItem "frontend-web/dist" | Select-Object Name
+
+      - name: Install desktop dependencies
+        working-directory: frontend-desktop
+        run: npm install
+
+      - name: Rebuild native modules for Electron
+        working-directory: frontend-desktop
+        run: npx electron-rebuild -f -w better-sqlite3
+
+      - name: Build Windows installer
+        working-directory: frontend-desktop
+        run: npm run build:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Verify Windows installer
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem "frontend-desktop/dist/*.exe" -ErrorAction SilentlyContinue
+          if (-not $files) {
+            Write-Error "No Windows installer was generated in frontend-desktop/dist."
+            exit 1
+          }
+          $files | Select-Object FullName, Length
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finance-Pro-Windows
+          path: frontend-desktop/dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Windows installer to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend-desktop/dist/*.exe
+          generate_release_notes: true
+
+  build-linux:
+    name: Build Linux Desktop
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout frontend-desktop
+        uses: actions/checkout@v4
+        with:
+          path: frontend-desktop
+
+      - name: Checkout frontend-web
+        uses: actions/checkout@v4
+        with:
+          repository: Finance-Pro-SaaS/frontend-web
+          path: frontend-web
+          token: ${{ secrets.CROSS_REPO_PAT }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-web/package-lock.json
+
+      - name: Show tool versions
+        run: |
+          node --version
+          npm --version
+
+      - name: Install frontend-web dependencies
+        working-directory: frontend-web
+        run: npm ci
+
+      - name: Build frontend-web
+        working-directory: frontend-web
+        run: npm run build
+
+      - name: Verify frontend-web build
+        run: test -d frontend-web/dist
+
+      - name: Install desktop dependencies
+        working-directory: frontend-desktop
+        run: npm install
+
+      - name: Rebuild native modules for Electron
+        working-directory: frontend-desktop
+        run: npx electron-rebuild -f -w better-sqlite3
+
+      - name: Build Linux AppImage
+        working-directory: frontend-desktop
+        run: npm run build:linux
+
+      - name: Verify Linux package
+        run: test -n "$(find frontend-desktop/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finance-Pro-Linux
+          path: frontend-desktop/dist/*.AppImage
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Linux package to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend-desktop/dist/*.AppImage
+          generate_release_notes: true
