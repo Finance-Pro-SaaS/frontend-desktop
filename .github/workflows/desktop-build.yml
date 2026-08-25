@@ -34,12 +34,6 @@ jobs:
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-          # Nécessaire uniquement si frontend-web est un dépôt PRIVÉ : le
-          # GITHUB_TOKEN par défaut ne voit que le dépôt courant. Crée un
-          # Personal Access Token (scope repo, lecture) et ajoute-le en
-          # secret nommé CROSS_REPO_PAT sur CE dépôt (frontend-desktop),
-          # Settings > Secrets and variables > Actions.
-          token: ${{ secrets.CROSS_REPO_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -124,7 +118,6 @@ jobs:
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-          token: ${{ secrets.CROSS_REPO_PAT }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
