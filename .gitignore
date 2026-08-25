@@ -1,0 +1,41 @@
+# --- PHP / Laravel (backend) ---
+backend/vendor/
+backend/.env
+backend/storage/*.key
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/bootstrap/cache/*
+backend/.phpunit.result.cache
+
+# --- Node (frontend-web, frontend-desktop) ---
+node_modules/
+dist/
+build/
+!frontend-desktop/build/
+!frontend-desktop/build/**
+.vite/
+*.local
+
+# --- Electron ---
+frontend-desktop/out/
+frontend-desktop/dist/
+
+# --- Env & secrets ---
+.env
+.env.local
+.env.*.local
+
+# --- OS / éditeurs ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+
+# PWA (vite-plugin-pwa)
+frontend-web/dev-dist/

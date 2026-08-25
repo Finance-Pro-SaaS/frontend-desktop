@@ -1,0 +1,42 @@
+{
+  "name": "Finance-Pro-Desktop",
+  "version": "0.1.0",
+  "description": "Finance Pro Desktop est une application multiplateforme Windows/Linux basée sur Electron, intégrant l’interface web Finance Pro et un moteur de stockage local SQLite pour assurer la continuité des opérations hors connexion, avec synchronisation des données lorsque la connexion est disponible.",
+  "main": "main.js",
+  "author": "ONG Finance Pro",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.0.0"
+  },
+  "build": {
+    "appId": "com.ongfinancepro.desktop",
+    "productName": "Finance Pro",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend-web/dist",
+        "to": "frontend-web/dist"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "build/icon.png"
+    }
+  }
+}
