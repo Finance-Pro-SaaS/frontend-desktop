@@ -22,7 +22,8 @@
     "files": [
       "main.js",
       "preload.js",
-      "src/**/*"
+      "src/**/*",
+      "build/icon.png"
     ],
     "extraResources": [
       {
