@@ -14,7 +14,7 @@ env:
   # utilisateurs n'ont PAS de serveur local — sans ceci le build utilise le
   # défaut du code (http://localhost:8000/api) et rien ne fonctionne une fois
   # installé.
-  VITE_API_BASE_URL: https://finance-pro.onrender.com/api
+  VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
 
 jobs:
   build-windows:

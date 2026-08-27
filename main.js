@@ -19,7 +19,7 @@ function createWindow() {
 
   if (isDev) {
     // En développement : pointe vers le serveur Vite.
-    win.loadURL('https://finance-pro.vercel.app')
+    win.loadURL('https://finance-pro-ruby.vercel.app')
   } else {
     // En production : le build web est copié dans resources/frontend-web/dist
     // par electron-builder via extraResources.
