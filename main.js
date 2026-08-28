@@ -1,7 +1,7 @@
-const { app, BrowserWindow } = require('electron')
-const path = require('path')
-const { initDatabase, closeDatabase } = require('./src/database')
-const { registerDbHandlers } = require('./src/ipcHandlers')
+import { app, BrowserWindow } from 'electron'
+import { join } from 'path'
+import { initDatabase, closeDatabase } from './src/database'
+import { registerDbHandlers } from './src/ipcHandlers'
 
 const isDev = !app.isPackaged
 
@@ -9,9 +9,9 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    icon: join(__dirname, 'build/icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -23,7 +23,7 @@ function createWindow() {
   } else {
     // En production : le build web est copié dans resources/frontend-web/dist
     // par electron-builder via extraResources.
-    const indexPath = path.join(
+    const indexPath = join(
       process.resourcesPath,
       'frontend-web',
       'dist',
