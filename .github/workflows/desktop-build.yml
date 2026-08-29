@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v*.*'
 
 permissions:
   contents: write
@@ -12,15 +12,15 @@ permissions:
 env:
   # URL du backend en production. Les apps desktop installées chez les
   # utilisateurs n'ont PAS de serveur local — sans ceci le build utilise le
-  # défaut du code (http://localhost:8000/api) et rien ne fonctionne une fois
-  # installé.
+  # défaut du code (http://localhost:8000/api) et rien ne fonctionne une fois installé.
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
+  AWS_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
   build-windows:
     name: Build Windows Desktop
     runs-on: windows-latest
-
     steps:
       - name: Checkout frontend-desktop
         uses: actions/checkout@v4
@@ -58,55 +58,42 @@ jobs:
       - name: Verify frontend-web build
         shell: pwsh
         run: |
-          if (-not (Test-Path "frontend-web/dist")) {
-            Write-Error "frontend-web/dist was not generated."
-            exit 1
+          if (-not (Test-Path "frontend-web/dist")) { 
+            Write-Error "frontend-web/dist was not generated." 
+            exit 1 
           }
           Get-ChildItem "frontend-web/dist" | Select-Object Name
 
       - name: Install desktop dependencies
         working-directory: frontend-desktop
-        run: npm install
+        run: npm ci
 
       - name: Rebuild native modules for Electron
         working-directory: frontend-desktop
         run: npx electron-rebuild -f -w better-sqlite3
 
-      - name: Build Windows installer
+      - name: Build and Publish Windows installer to R2
         working-directory: frontend-desktop
-        run: npm run build:win
+        run: npm run publish
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Verify Windows installer
+      - name: Verify Windows installer in R2
         shell: pwsh
         run: |
           $files = Get-ChildItem "frontend-desktop/dist/*.exe" -ErrorAction SilentlyContinue
-          if (-not $files) {
-            Write-Error "No Windows installer was generated in frontend-desktop/dist."
-            exit 1
+          if (-not $files) { 
+            Write-Error "No Windows installer was generated in frontend-desktop/dist." 
+            exit 1 
           }
           $files | Select-Object FullName, Length
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: Finance-Pro-Windows
-          path: frontend-desktop/dist/*.exe
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload Windows installer to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: frontend-desktop/dist/*.exe
-          generate_release_notes: true
 
   build-linux:
     name: Build Linux Desktop
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout frontend-desktop
         uses: actions/checkout@v4
@@ -144,30 +131,19 @@ jobs:
 
       - name: Install desktop dependencies
         working-directory: frontend-desktop
-        run: npm install
+        run: npm ci
 
       - name: Rebuild native modules for Electron
         working-directory: frontend-desktop
         run: npx electron-rebuild -f -w better-sqlite3
 
-      - name: Build Linux AppImage
+      - name: Build and Publish Linux AppImage to R2
         working-directory: frontend-desktop
-        run: npm run build:linux
+        run: npm run publish
+        env:
+          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
       - name: Verify Linux package
         run: test -n "$(find frontend-desktop/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-
-      - name: Upload Linux AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: Finance-Pro-Linux
-          path: frontend-desktop/dist/*.AppImage
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload Linux package to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: frontend-desktop/dist/*.AppImage
-          generate_release_notes: true

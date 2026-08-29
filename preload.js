@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+import { contextBridge, ipcRenderer } from 'electron'
 
 // Expose une API restreinte au renderer (frontend web) au lieu de
 // donner un accès Node.js complet, pour rester sécurisé.

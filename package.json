@@ -19,12 +19,22 @@
   "build": {
     "appId": "com.ongfinancepro.desktop",
     "productName": "Finance Pro",
+    "copyright": "Copyright 2026 Finance Pro",
     "files": [
       "main.js",
       "preload.js",
       "src/**/*",
       "build/icon.png"
     ],
+    "publish":{
+      "provider": "s3",
+      "endpoint": "https://6a3dfa1e4c9e48b780d4ae56e8c0c780.r2.cloudflarestorage.com",
+      "bucket": "financepro-updates",
+      "region": "auto",
+      "path": "/v1",
+      "acl": "public-read",
+      "channel": "latest"
+    },
     "extraResources": [
       {
         "from": "../frontend-web/dist",
