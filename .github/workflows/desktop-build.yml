@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  # Backend Finance Pro actuellement utilisé par le frontend
+  # Backend Finance Pro utilisé par le frontend Web
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     steps:
 
       # ----------------------------------------------------------
-      # Récupération du projet Desktop
+      # Checkout Desktop
       # ----------------------------------------------------------
 
       - name: Checkout desktop
@@ -36,7 +36,7 @@ jobs:
           path: frontend-desktop
 
       # ----------------------------------------------------------
-      # Récupération du frontend Web
+      # Checkout Frontend Web
       # ----------------------------------------------------------
 
       - name: Checkout web
@@ -47,7 +47,6 @@ jobs:
 
       # ----------------------------------------------------------
       # Node.js
-      # electron-builder v27 nécessite Node >= 22.12.0
       # ----------------------------------------------------------
 
       - name: Setup Node.js
@@ -60,7 +59,7 @@ jobs:
             frontend-web/package-lock.json
 
       # ----------------------------------------------------------
-      # Installation frontend Web
+      # Installation Frontend Web
       # ----------------------------------------------------------
 
       - name: Install web dependencies
@@ -68,10 +67,7 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Build frontend Web
-      #
-      # VITE_API_BASE_URL sera intégré au build React.
-      # Le Desktop embarquera ensuite frontend-web/dist.
+      # Build Frontend Web
       # ----------------------------------------------------------
 
       - name: Build web
@@ -118,18 +114,50 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Build + publication R2
+      # Vérification des identifiants R2
       #
-      # Les clés R2 viennent exclusivement des GitHub Secrets.
-      # Elles ne sont jamais écrites dans le repository.
+      # IMPORTANT :
+      # Les valeurs réelles ne sont jamais affichées.
+      # Seules leurs longueurs sont vérifiées.
+      # ----------------------------------------------------------
+
+      - name: Verify R2 credentials
+        shell: pwsh
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:AWS_ACCESS_KEY_ID)) {
+            throw "AWS_ACCESS_KEY_ID is empty"
+          }
+
+          if ([string]::IsNullOrEmpty($env:AWS_SECRET_ACCESS_KEY)) {
+            throw "AWS_SECRET_ACCESS_KEY is empty"
+          }
+
+          Write-Host "R2 Access Key length: $($env:AWS_ACCESS_KEY_ID.Length)"
+          Write-Host "R2 Secret Key length: $($env:AWS_SECRET_ACCESS_KEY.Length)"
+
+          if ($env:AWS_ACCESS_KEY_ID.Length -ne 32) {
+            throw "R2 Access Key ID does not have 32 characters"
+          }
+
+          if ($env:AWS_SECRET_ACCESS_KEY.Length -ne 64) {
+            throw "R2 Secret Access Key does not have 64 characters"
+          }
+
+          Write-Host "R2 credentials format verified successfully."
+
+      # ----------------------------------------------------------
+      # Build + Publication Windows vers Cloudflare R2
       # ----------------------------------------------------------
 
       - name: Build and publish Windows to R2
         working-directory: frontend-desktop
         run: npx electron-builder --win --publish always
         env:
-          AWS_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       # ----------------------------------------------------------
@@ -140,7 +168,8 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Windows artifacts:"
-          Get-ChildItem frontend-desktop/dist | Format-Table Name, Length
+          Get-ChildItem frontend-desktop/dist |
+            Format-Table Name, Length
 
 
   # ============================================================
@@ -154,7 +183,7 @@ jobs:
     steps:
 
       # ----------------------------------------------------------
-      # Récupération du projet Desktop
+      # Checkout Desktop
       # ----------------------------------------------------------
 
       - name: Checkout desktop
@@ -163,7 +192,7 @@ jobs:
           path: frontend-desktop
 
       # ----------------------------------------------------------
-      # Récupération du frontend Web
+      # Checkout Frontend Web
       # ----------------------------------------------------------
 
       - name: Checkout web
@@ -186,7 +215,7 @@ jobs:
             frontend-web/package-lock.json
 
       # ----------------------------------------------------------
-      # Installation frontend Web
+      # Installation Frontend Web
       # ----------------------------------------------------------
 
       - name: Install web dependencies
@@ -194,7 +223,7 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Build frontend Web
+      # Build Frontend Web
       # ----------------------------------------------------------
 
       - name: Build web
@@ -202,23 +231,35 @@ jobs:
         run: npm run build
 
       # ----------------------------------------------------------
-      # Vérification frontend
+      # Vérification du build Web
       # ----------------------------------------------------------
 
       - name: Verify web build
         run: |
-          test -d frontend-web/dist
+          if [ ! -d "frontend-web/dist" ]; then
+            echo "frontend-web/dist does not exist"
+            exit 1
+          fi
+
           echo "Frontend web build found successfully."
 
       # ----------------------------------------------------------
-      # Vérification icônes
+      # Vérification des icônes
       # ----------------------------------------------------------
 
       - name: Verify icons
         working-directory: frontend-desktop
         run: |
-          test -f build/icon.png
-          test -f build/icon.ico
+          if [ ! -f "build/icon.png" ]; then
+            echo "build/icon.png is missing"
+            exit 1
+          fi
+
+          if [ ! -f "build/icon.ico" ]; then
+            echo "build/icon.ico is missing"
+            exit 1
+          fi
+
           echo "Desktop icons found successfully."
 
       # ----------------------------------------------------------
@@ -230,15 +271,54 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Build + publication R2
+      # Vérification des identifiants R2
+      #
+      # IMPORTANT :
+      # Les valeurs réelles ne sont jamais affichées.
+      # Seules leurs longueurs sont vérifiées.
+      # ----------------------------------------------------------
+
+      - name: Verify R2 credentials
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "AWS_ACCESS_KEY_ID is empty"
+            exit 1
+          fi
+
+          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "AWS_SECRET_ACCESS_KEY is empty"
+            exit 1
+          fi
+
+          echo "R2 Access Key length: ${#AWS_ACCESS_KEY_ID}"
+          echo "R2 Secret Key length: ${#AWS_SECRET_ACCESS_KEY}"
+
+          if [ "${#AWS_ACCESS_KEY_ID}" -ne 32 ]; then
+            echo "R2 Access Key ID does not have 32 characters"
+            exit 1
+          fi
+
+          if [ "${#AWS_SECRET_ACCESS_KEY}" -ne 64 ]; then
+            echo "R2 Secret Access Key does not have 64 characters"
+            exit 1
+          fi
+
+          echo "R2 credentials format verified successfully."
+
+      # ----------------------------------------------------------
+      # Build + Publication Linux vers Cloudflare R2
       # ----------------------------------------------------------
 
       - name: Build and publish Linux to R2
         working-directory: frontend-desktop
         run: npx electron-builder --linux --publish always
         env:
-          AWS_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       # ----------------------------------------------------------
       # Affichage des fichiers générés
