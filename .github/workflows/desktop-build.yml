@@ -1,11 +1,20 @@
-name: Finance Pro Desktop Build
+name: Finance Pro Desktop - Build
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
-  push:
-    tags:
-      - "v*.*.*"
+    inputs:
+      version:
+        description: "Version Finance Pro Desktop à construire"
+        required: true
+        type: string
+
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: true
+
+      R2_SECRET_ACCESS_KEY:
+        required: true
 
 permissions:
   contents: read
@@ -21,10 +30,13 @@ jobs:
 
     steps:
 
-      - name: Checkout desktop
+      - name: Checkout Desktop
         uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
 
-      - name: Checkout web
+      - name: Checkout Frontend Web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
@@ -35,20 +47,22 @@ jobs:
         with:
           node-version: 22.12.0
 
-      - name: Install web dependencies
+      - name: Install Web dependencies
         working-directory: frontend-web
         run: npm ci
 
-      - name: Build web
+      - name: Build Web
         working-directory: frontend-web
         run: npm run build
 
-      - name: Verify web build
+      - name: Verify Web build
         shell: pwsh
         run: |
           if (-not (Test-Path "frontend-web/dist")) {
             throw "frontend-web/dist does not exist"
           }
+
+          Write-Host "Frontend Web build OK."
 
       - name: Verify icons
         shell: pwsh
@@ -61,10 +75,24 @@ jobs:
             throw "build/icon.png is missing"
           }
 
-      - name: Install desktop dependencies
+          Write-Host "Desktop icons OK."
+
+      - name: Install Desktop dependencies
         run: npm ci
 
-      - name: Build and publish Windows
+      - name: Verify Desktop version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+
+          Write-Host "Expected version: ${{ inputs.version }}"
+          Write-Host "Package version: $version"
+
+          if ($version -ne "${{ inputs.version }}") {
+            throw "Version mismatch."
+          }
+
+      - name: Build and publish Windows to R2
         run: npx electron-builder --win --publish always
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -74,7 +102,8 @@ jobs:
       - name: Show Windows artifacts
         shell: pwsh
         run: |
-          Get-ChildItem dist
+          Write-Host "Windows artifacts:"
+          Get-ChildItem dist | Format-Table Name, Length
 
 
   build-linux:
@@ -83,10 +112,13 @@ jobs:
 
     steps:
 
-      - name: Checkout desktop
+      - name: Checkout Desktop
         uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
 
-      - name: Checkout web
+      - name: Checkout Frontend Web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
@@ -97,27 +129,41 @@ jobs:
         with:
           node-version: 22.12.0
 
-      - name: Install web dependencies
+      - name: Install Web dependencies
         working-directory: frontend-web
         run: npm ci
 
-      - name: Build web
+      - name: Build Web
         working-directory: frontend-web
         run: npm run build
 
-      - name: Verify web build
+      - name: Verify Web build
         run: |
           test -d frontend-web/dist
+          echo "Frontend Web build OK."
 
       - name: Verify icons
         run: |
           test -f build/icon.png
           test -f build/icon.ico
+          echo "Desktop icons OK."
 
-      - name: Install desktop dependencies
+      - name: Install Desktop dependencies
         run: npm ci
 
-      - name: Build and publish Linux
+      - name: Verify Desktop version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+
+          echo "Expected version: ${{ inputs.version }}"
+          echo "Package version: $VERSION"
+
+          if [ "$VERSION" != "${{ inputs.version }}" ]; then
+            echo "Version mismatch."
+            exit 1
+          fi
+
+      - name: Build and publish Linux to R2
         run: npx electron-builder --linux --publish always
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
@@ -125,4 +171,5 @@ jobs:
 
       - name: Show Linux artifacts
         run: |
+          echo "Linux artifacts:"
           ls -lh dist

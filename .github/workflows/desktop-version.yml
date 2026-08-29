@@ -2,6 +2,7 @@ name: Finance Pro Desktop - Version automatique
 
 on:
   workflow_dispatch:
+
   push:
     branches:
       - main
@@ -10,11 +11,17 @@ permissions:
   contents: write
 
 jobs:
-  increment-version:
-    name: Increment Desktop Version
+
+  version:
+    name: Calculer et créer la nouvelle version
     runs-on: ubuntu-latest
 
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+      tag: ${{ steps.next.outputs.tag }}
+
     steps:
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -26,15 +33,17 @@ jobs:
         with:
           node-version: 22.12.0
 
-      - name: Read current version
+      - name: Lire la version actuelle
         id: current
         shell: bash
         run: |
           VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
           echo "Version actuelle : $VERSION"
 
-      - name: Calculate next version
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Calculer la prochaine version
         id: next
         shell: bash
         run: |
@@ -56,26 +65,46 @@ jobs:
           fi
 
           NEXT="${MAJOR}.${MINOR}.${PATCH}"
+          TAG="v${NEXT}"
+
+          echo "Nouvelle version : $NEXT"
+          echo "Nouveau tag : $TAG"
 
           echo "version=$NEXT" >> "$GITHUB_OUTPUT"
-          echo "Nouvelle version : $NEXT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Update package.json
+      - name: Mettre à jour package.json et package-lock.json
         run: |
           npm version "${{ steps.next.outputs.version }}" --no-git-tag-version
 
-      - name: Commit and tag
+      - name: Vérifier la nouvelle version
+        run: |
+          node -p "require('./package.json').version"
+
+      - name: Commit et tag
         run: |
           VERSION="${{ steps.next.outputs.version }}"
+          TAG="v${VERSION}"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add package.json package-lock.json
 
-          git commit -m "chore: release v${VERSION}"
+          git commit -m "chore: release ${TAG}"
 
-          git tag "v${VERSION}"
+          git tag -a "${TAG}" -m "Finance Pro Desktop ${TAG}"
 
           git push origin main
-          git push origin "v${VERSION}"
+          git push origin "${TAG}"
+
+  build:
+    name: Build Windows + Linux
+    needs: version
+
+    uses: Finance-Pro-SaaS/frontend-desktop/.github/workflows/desktop-build.yml@main
+
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+    secrets: inherit
