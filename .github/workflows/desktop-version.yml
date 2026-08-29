@@ -1,0 +1,81 @@
+name: Finance Pro Desktop - Version automatique
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  increment-version:
+    name: Increment Desktop Version
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+
+      - name: Read current version
+        id: current
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version actuelle : $VERSION"
+
+      - name: Calculate next version
+        id: next
+        shell: bash
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          if [ "$PATCH" -lt 99 ]; then
+            PATCH=$((PATCH + 1))
+
+          elif [ "$MINOR" -lt 99 ]; then
+            MINOR=$((MINOR + 1))
+            PATCH=0
+
+          else
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+          fi
+
+          NEXT="${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Nouvelle version : $NEXT"
+
+      - name: Update package.json
+        run: |
+          npm version "${{ steps.next.outputs.version }}" --no-git-tag-version
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ steps.next.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+
+          git commit -m "chore: release v${VERSION}"
+
+          git tag "v${VERSION}"
+
+          git push origin main
+          git push origin "v${VERSION}"

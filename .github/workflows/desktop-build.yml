@@ -4,110 +4,36 @@ on:
   workflow_dispatch:
 
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
 
 permissions:
-  contents: write
-
-concurrency:
-  group: finance-pro-desktop-build
-  cancel-in-progress: false
+  contents: read
 
 env:
-  # API utilisée par le frontend Web embarqué dans Desktop
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
 
 jobs:
 
-  # ============================================================
-  # VERSION AUTOMATIQUE
-  # ============================================================
-
-  version:
-    name: Increment Desktop Version
-    runs-on: ubuntu-latest
-
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-
-    steps:
-
-      - name: Checkout desktop
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.12.0
-
-      - name: Increment patch version
-        working-directory: frontend-desktop
-        run: |
-          npm version patch --no-git-tag-version
-
-      - name: Read new version
-        id: version
-        working-directory: frontend-desktop
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "New Finance Pro Desktop version: $VERSION"
-
-      - name: Commit new version
-        working-directory: frontend-desktop
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add package.json package-lock.json
-
-          git commit \
-            -m "chore(desktop): release v${{ steps.version.outputs.version }} [skip ci]"
-
-          git push
-
-
-  # ============================================================
-  # WINDOWS
-  # ============================================================
-
   build-windows:
     name: Build Windows
-    needs: version
     runs-on: windows-latest
 
     steps:
 
       - name: Checkout desktop
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-          cache: npm
-          cache-dependency-path: |
-            frontend-desktop/package-lock.json
-            frontend-web/package-lock.json
-
-      # ----------------------------------------------------------
-      # Frontend Web
-      # ----------------------------------------------------------
 
       - name: Install web dependencies
         working-directory: frontend-web
@@ -124,14 +50,7 @@ jobs:
             throw "frontend-web/dist does not exist"
           }
 
-          Write-Host "Frontend web build found successfully."
-
-      # ----------------------------------------------------------
-      # Icons
-      # ----------------------------------------------------------
-
       - name: Verify icons
-        working-directory: frontend-desktop
         shell: pwsh
         run: |
           if (-not (Test-Path "build/icon.ico")) {
@@ -142,85 +61,41 @@ jobs:
             throw "build/icon.png is missing"
           }
 
-          Write-Host "Desktop icons found successfully."
-
-      # ----------------------------------------------------------
-      # Desktop dependencies
-      # ----------------------------------------------------------
-
       - name: Install desktop dependencies
-        working-directory: frontend-desktop
         run: npm ci
 
-      # ----------------------------------------------------------
-      # Vérification version
-      # ----------------------------------------------------------
-
-      - name: Show Desktop version
-        working-directory: frontend-desktop
-        run: |
-          node -p "require('./package.json').version"
-
-      # ----------------------------------------------------------
-      # Build + publication R2
-      # ----------------------------------------------------------
-
-      - name: Build and publish Windows to R2
-        working-directory: frontend-desktop
+      - name: Build and publish Windows
         run: npx electron-builder --win --publish always
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      # ----------------------------------------------------------
-      # Artifacts
-      # ----------------------------------------------------------
-
       - name: Show Windows artifacts
         shell: pwsh
         run: |
-          Write-Host "Windows artifacts:"
-          Get-ChildItem frontend-desktop/dist |
-            Format-Table Name, Length
+          Get-ChildItem dist
 
-
-  # ============================================================
-  # LINUX
-  # ============================================================
 
   build-linux:
     name: Build Linux
-    needs: version
     runs-on: ubuntu-latest
 
     steps:
 
       - name: Checkout desktop
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.12.0
-          cache: npm
-          cache-dependency-path: |
-            frontend-desktop/package-lock.json
-            frontend-web/package-lock.json
-
-      # ----------------------------------------------------------
-      # Frontend Web
-      # ----------------------------------------------------------
 
       - name: Install web dependencies
         working-directory: frontend-web
@@ -233,52 +108,21 @@ jobs:
       - name: Verify web build
         run: |
           test -d frontend-web/dist
-          echo "Frontend web build found successfully."
-
-      # ----------------------------------------------------------
-      # Icons
-      # ----------------------------------------------------------
 
       - name: Verify icons
-        working-directory: frontend-desktop
         run: |
           test -f build/icon.png
           test -f build/icon.ico
-          echo "Desktop icons found successfully."
-
-      # ----------------------------------------------------------
-      # Desktop dependencies
-      # ----------------------------------------------------------
 
       - name: Install desktop dependencies
-        working-directory: frontend-desktop
         run: npm ci
 
-      # ----------------------------------------------------------
-      # Vérification version
-      # ----------------------------------------------------------
-
-      - name: Show Desktop version
-        working-directory: frontend-desktop
-        run: |
-          node -p "require('./package.json').version"
-
-      # ----------------------------------------------------------
-      # Build + publication R2
-      # ----------------------------------------------------------
-
-      - name: Build and publish Linux to R2
-        working-directory: frontend-desktop
+      - name: Build and publish Linux
         run: npx electron-builder --linux --publish always
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-      # ----------------------------------------------------------
-      # Artifacts
-      # ----------------------------------------------------------
-
       - name: Show Linux artifacts
         run: |
-          echo "Linux artifacts:"
-          ls -lh frontend-desktop/dist
+          ls -lh dist
