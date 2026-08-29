@@ -27,8 +27,6 @@ jobs:
         with:
           path: frontend-desktop
 
-      # frontend-web est maintenant un dépôt séparé : on le récupère à côté
-      # pour que les chemins relatifs (../frontend-web/dist) restent valides.
       - name: Checkout frontend-web
         uses: actions/checkout@v4
         with:
@@ -70,7 +68,12 @@ jobs:
 
       - name: Rebuild native modules for Electron
         working-directory: frontend-desktop
-        run: npx electron-rebuild -f -w better-sqlite3
+        run: npx electron-builder install-app-deps
+        env:
+          npm_config_target: 31.2.0
+          npm_config_runtime: electron
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_build_from_source: true
 
       - name: Build and Publish Windows installer to R2
         working-directory: frontend-desktop
@@ -81,7 +84,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Verify Windows installer in R2
+      - name: Verify Windows installer
         shell: pwsh
         run: |
           $files = Get-ChildItem "frontend-desktop/dist/*.exe" -ErrorAction SilentlyContinue
@@ -135,7 +138,12 @@ jobs:
 
       - name: Rebuild native modules for Electron
         working-directory: frontend-desktop
-        run: npx electron-rebuild -f -w better-sqlite3
+        run: npx electron-builder install-app-deps
+        env:
+          npm_config_target: 31.2.0
+          npm_config_runtime: electron
+          npm_config_disturl: https://electronjs.org/headers
+          npm_config_build_from_source: true
 
       - name: Build and Publish Linux AppImage to R2
         working-directory: frontend-desktop
