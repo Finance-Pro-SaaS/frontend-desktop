@@ -4,17 +4,75 @@ on:
   workflow_dispatch:
 
   push:
-    tags:
-      - "v*.*.*"
+    branches:
+      - main
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: finance-pro-desktop-build
+  cancel-in-progress: false
 
 env:
-  # Backend Finance Pro utilisé par le frontend Web
+  # API utilisée par le frontend Web embarqué dans Desktop
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
 
 jobs:
+
+  # ============================================================
+  # VERSION AUTOMATIQUE
+  # ============================================================
+
+  version:
+    name: Increment Desktop Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+
+      - name: Checkout desktop
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+          cache-dependency-path: frontend-desktop/package-lock.json
+
+      - name: Increment patch version
+        working-directory: frontend-desktop
+        run: |
+          npm version patch --no-git-tag-version
+
+      - name: Read new version
+        id: version
+        working-directory: frontend-desktop
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "New Finance Pro Desktop version: $VERSION"
+
+      - name: Commit new version
+        working-directory: frontend-desktop
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+
+          git commit \
+            -m "chore(desktop): release v${{ steps.version.outputs.version }} [skip ci]"
+
+          git push
+
 
   # ============================================================
   # WINDOWS
@@ -22,32 +80,23 @@ jobs:
 
   build-windows:
     name: Build Windows
+    needs: version
     runs-on: windows-latest
 
     steps:
 
-      # ----------------------------------------------------------
-      # Checkout Desktop
-      # ----------------------------------------------------------
-
       - name: Checkout desktop
         uses: actions/checkout@v4
         with:
-          path: frontend-desktop
-
-      # ----------------------------------------------------------
-      # Checkout Frontend Web
-      # ----------------------------------------------------------
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-
-      # ----------------------------------------------------------
-      # Node.js
-      # ----------------------------------------------------------
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -59,24 +108,16 @@ jobs:
             frontend-web/package-lock.json
 
       # ----------------------------------------------------------
-      # Installation Frontend Web
+      # Frontend Web
       # ----------------------------------------------------------
 
       - name: Install web dependencies
         working-directory: frontend-web
         run: npm ci
 
-      # ----------------------------------------------------------
-      # Build Frontend Web
-      # ----------------------------------------------------------
-
       - name: Build web
         working-directory: frontend-web
         run: npm run build
-
-      # ----------------------------------------------------------
-      # Vérification du build Web
-      # ----------------------------------------------------------
 
       - name: Verify web build
         shell: pwsh
@@ -88,7 +129,7 @@ jobs:
           Write-Host "Frontend web build found successfully."
 
       # ----------------------------------------------------------
-      # Vérification des icônes
+      # Icons
       # ----------------------------------------------------------
 
       - name: Verify icons
@@ -106,7 +147,7 @@ jobs:
           Write-Host "Desktop icons found successfully."
 
       # ----------------------------------------------------------
-      # Installation Desktop
+      # Desktop dependencies
       # ----------------------------------------------------------
 
       - name: Install desktop dependencies
@@ -114,42 +155,16 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Vérification des identifiants R2
-      #
-      # IMPORTANT :
-      # Les valeurs réelles ne sont jamais affichées.
-      # Seules leurs longueurs sont vérifiées.
+      # Vérification version
       # ----------------------------------------------------------
 
-      - name: Verify R2 credentials
-        shell: pwsh
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      - name: Show Desktop version
+        working-directory: frontend-desktop
         run: |
-          if ([string]::IsNullOrEmpty($env:AWS_ACCESS_KEY_ID)) {
-            throw "AWS_ACCESS_KEY_ID is empty"
-          }
-
-          if ([string]::IsNullOrEmpty($env:AWS_SECRET_ACCESS_KEY)) {
-            throw "AWS_SECRET_ACCESS_KEY is empty"
-          }
-
-          Write-Host "R2 Access Key length: $($env:AWS_ACCESS_KEY_ID.Length)"
-          Write-Host "R2 Secret Key length: $($env:AWS_SECRET_ACCESS_KEY.Length)"
-
-          if ($env:AWS_ACCESS_KEY_ID.Length -ne 32) {
-            throw "R2 Access Key ID does not have 32 characters"
-          }
-
-          if ($env:AWS_SECRET_ACCESS_KEY.Length -ne 64) {
-            throw "R2 Secret Access Key does not have 64 characters"
-          }
-
-          Write-Host "R2 credentials format verified successfully."
+          node -p "require('./package.json').version"
 
       # ----------------------------------------------------------
-      # Build + Publication Windows vers Cloudflare R2
+      # Build + publication R2
       # ----------------------------------------------------------
 
       - name: Build and publish Windows to R2
@@ -161,7 +176,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       # ----------------------------------------------------------
-      # Affichage des fichiers générés
+      # Artifacts
       # ----------------------------------------------------------
 
       - name: Show Windows artifacts
@@ -178,32 +193,23 @@ jobs:
 
   build-linux:
     name: Build Linux
+    needs: version
     runs-on: ubuntu-latest
 
     steps:
 
-      # ----------------------------------------------------------
-      # Checkout Desktop
-      # ----------------------------------------------------------
-
       - name: Checkout desktop
         uses: actions/checkout@v4
         with:
-          path: frontend-desktop
-
-      # ----------------------------------------------------------
-      # Checkout Frontend Web
-      # ----------------------------------------------------------
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
-
-      # ----------------------------------------------------------
-      # Node.js
-      # ----------------------------------------------------------
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -215,55 +221,35 @@ jobs:
             frontend-web/package-lock.json
 
       # ----------------------------------------------------------
-      # Installation Frontend Web
+      # Frontend Web
       # ----------------------------------------------------------
 
       - name: Install web dependencies
         working-directory: frontend-web
         run: npm ci
 
-      # ----------------------------------------------------------
-      # Build Frontend Web
-      # ----------------------------------------------------------
-
       - name: Build web
         working-directory: frontend-web
         run: npm run build
 
-      # ----------------------------------------------------------
-      # Vérification du build Web
-      # ----------------------------------------------------------
-
       - name: Verify web build
         run: |
-          if [ ! -d "frontend-web/dist" ]; then
-            echo "frontend-web/dist does not exist"
-            exit 1
-          fi
-
+          test -d frontend-web/dist
           echo "Frontend web build found successfully."
 
       # ----------------------------------------------------------
-      # Vérification des icônes
+      # Icons
       # ----------------------------------------------------------
 
       - name: Verify icons
         working-directory: frontend-desktop
         run: |
-          if [ ! -f "build/icon.png" ]; then
-            echo "build/icon.png is missing"
-            exit 1
-          fi
-
-          if [ ! -f "build/icon.ico" ]; then
-            echo "build/icon.ico is missing"
-            exit 1
-          fi
-
+          test -f build/icon.png
+          test -f build/icon.ico
           echo "Desktop icons found successfully."
 
       # ----------------------------------------------------------
-      # Installation Desktop
+      # Desktop dependencies
       # ----------------------------------------------------------
 
       - name: Install desktop dependencies
@@ -271,46 +257,16 @@ jobs:
         run: npm ci
 
       # ----------------------------------------------------------
-      # Vérification des identifiants R2
-      #
-      # IMPORTANT :
-      # Les valeurs réelles ne sont jamais affichées.
-      # Seules leurs longueurs sont vérifiées.
+      # Vérification version
       # ----------------------------------------------------------
 
-      - name: Verify R2 credentials
-        shell: bash
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      - name: Show Desktop version
+        working-directory: frontend-desktop
         run: |
-          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
-            echo "AWS_ACCESS_KEY_ID is empty"
-            exit 1
-          fi
-
-          if [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "AWS_SECRET_ACCESS_KEY is empty"
-            exit 1
-          fi
-
-          echo "R2 Access Key length: ${#AWS_ACCESS_KEY_ID}"
-          echo "R2 Secret Key length: ${#AWS_SECRET_ACCESS_KEY}"
-
-          if [ "${#AWS_ACCESS_KEY_ID}" -ne 32 ]; then
-            echo "R2 Access Key ID does not have 32 characters"
-            exit 1
-          fi
-
-          if [ "${#AWS_SECRET_ACCESS_KEY}" -ne 64 ]; then
-            echo "R2 Secret Access Key does not have 64 characters"
-            exit 1
-          fi
-
-          echo "R2 credentials format verified successfully."
+          node -p "require('./package.json').version"
 
       # ----------------------------------------------------------
-      # Build + Publication Linux vers Cloudflare R2
+      # Build + publication R2
       # ----------------------------------------------------------
 
       - name: Build and publish Linux to R2
@@ -321,7 +277,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       # ----------------------------------------------------------
-      # Affichage des fichiers générés
+      # Artifacts
       # ----------------------------------------------------------
 
       - name: Show Linux artifacts
