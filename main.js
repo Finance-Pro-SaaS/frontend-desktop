@@ -1,5 +1,5 @@
 const { app, BrowserWindow, dialog } = require('electron')
-const { join } = require('path')
+const path = require('path')
 
 const { initDatabase, closeDatabase } = require('./src/database')
 const { registerDbHandlers } = require('./src/ipcHandlers')
@@ -7,21 +7,13 @@ const { autoUpdater } = require('electron-updater')
 
 const isDev = !app.isPackaged
 
-let mainWindow = null
-
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
-
-    icon: join(
-      __dirname,
-      'build',
-      'icon.png'
-    ),
-
+    icon: path.join(__dirname, 'build/icon.png'),
     webPreferences: {
-      preload: join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -30,30 +22,30 @@ function createWindow() {
   if (isDev) {
     // En développement :
     // chargement du frontend Web distant.
-    mainWindow.loadURL(
+    win.loadURL(
       'https://finance-pro-ruby.vercel.app'
     )
   } else {
     // En production :
     // chargement du frontend Web embarqué
     // dans resources/frontend-web/dist.
-    const indexPath = join(
-      process.resourcesPath,
+    const indexPath = path.join( 
+      process.resourcesPath, 
       'frontend-web',
       'dist',
       'index.html'
     )
 
-    mainWindow.loadFile(indexPath)
+    win.loadFile(indexPath)
   }
 
 
-  mainWindow.on('closed', () => {
-    mainWindow = null
+  win.on('closed', () => {
+    win = null
   })
 
 
-  return mainWindow
+  return win
 }
 
 
@@ -87,13 +79,13 @@ function setupAutoUpdater() {
       )
 
 
-      if (!mainWindow) {
+      if (!win) {
         return
       }
 
 
       const result = await dialog.showMessageBox(
-        mainWindow,
+        win,
         {
           type: 'info',
 
@@ -153,13 +145,13 @@ function setupAutoUpdater() {
       )
 
 
-      if (!mainWindow) {
+      if (!win) {
         return
       }
 
 
       const result = await dialog.showMessageBox(
-        mainWindow,
+        win,
         {
           type: 'info',
 
