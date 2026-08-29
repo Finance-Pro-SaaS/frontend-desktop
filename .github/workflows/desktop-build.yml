@@ -11,9 +11,14 @@ permissions:
   contents: read
 
 env:
+  # Backend Finance Pro actuellement utilisé par le frontend
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
 
 jobs:
+
+  # ============================================================
+  # WINDOWS
+  # ============================================================
 
   build-windows:
     name: Build Windows
@@ -21,10 +26,18 @@ jobs:
 
     steps:
 
+      # ----------------------------------------------------------
+      # Récupération du projet Desktop
+      # ----------------------------------------------------------
+
       - name: Checkout desktop
         uses: actions/checkout@v4
         with:
           path: frontend-desktop
+
+      # ----------------------------------------------------------
+      # Récupération du frontend Web
+      # ----------------------------------------------------------
 
       - name: Checkout web
         uses: actions/checkout@v4
@@ -32,22 +45,42 @@ jobs:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
 
+      # ----------------------------------------------------------
+      # Node.js
+      # electron-builder v27 nécessite Node >= 22.12.0
+      # ----------------------------------------------------------
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.12.0
           cache: npm
           cache-dependency-path: |
             frontend-desktop/package-lock.json
             frontend-web/package-lock.json
 
+      # ----------------------------------------------------------
+      # Installation frontend Web
+      # ----------------------------------------------------------
+
       - name: Install web dependencies
         working-directory: frontend-web
         run: npm ci
 
+      # ----------------------------------------------------------
+      # Build frontend Web
+      #
+      # VITE_API_BASE_URL sera intégré au build React.
+      # Le Desktop embarquera ensuite frontend-web/dist.
+      # ----------------------------------------------------------
+
       - name: Build web
         working-directory: frontend-web
         run: npm run build
+
+      # ----------------------------------------------------------
+      # Vérification du build Web
+      # ----------------------------------------------------------
 
       - name: Verify web build
         shell: pwsh
@@ -55,6 +88,12 @@ jobs:
           if (-not (Test-Path "frontend-web/dist")) {
             throw "frontend-web/dist does not exist"
           }
+
+          Write-Host "Frontend web build found successfully."
+
+      # ----------------------------------------------------------
+      # Vérification des icônes
+      # ----------------------------------------------------------
 
       - name: Verify icons
         working-directory: frontend-desktop
@@ -68,19 +107,24 @@ jobs:
             throw "build/icon.png is missing"
           }
 
+          Write-Host "Desktop icons found successfully."
+
+      # ----------------------------------------------------------
+      # Installation Desktop
+      # ----------------------------------------------------------
+
       - name: Install desktop dependencies
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild native modules
-        working-directory: frontend-desktop
-        run: npx @electron/rebuild -f -w better-sqlite3
+      # ----------------------------------------------------------
+      # Build + publication R2
+      #
+      # Les clés R2 viennent exclusivement des GitHub Secrets.
+      # Elles ne sont jamais écrites dans le repository.
+      # ----------------------------------------------------------
 
-      - name: Build Windows
-        working-directory: frontend-desktop
-        run: npm run build:win
-
-      - name: Publish Windows to R2
+      - name: Build and publish Windows to R2
         working-directory: frontend-desktop
         run: npx electron-builder --win --publish always
         env:
@@ -88,11 +132,20 @@ jobs:
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: Show artifacts
+      # ----------------------------------------------------------
+      # Affichage des fichiers générés
+      # ----------------------------------------------------------
+
+      - name: Show Windows artifacts
         shell: pwsh
         run: |
-          Get-ChildItem frontend-desktop/dist
+          Write-Host "Windows artifacts:"
+          Get-ChildItem frontend-desktop/dist | Format-Table Name, Length
 
+
+  # ============================================================
+  # LINUX
+  # ============================================================
 
   build-linux:
     name: Build Linux
@@ -100,10 +153,18 @@ jobs:
 
     steps:
 
+      # ----------------------------------------------------------
+      # Récupération du projet Desktop
+      # ----------------------------------------------------------
+
       - name: Checkout desktop
         uses: actions/checkout@v4
         with:
           path: frontend-desktop
+
+      # ----------------------------------------------------------
+      # Récupération du frontend Web
+      # ----------------------------------------------------------
 
       - name: Checkout web
         uses: actions/checkout@v4
@@ -111,51 +172,79 @@ jobs:
           repository: Finance-Pro-SaaS/frontend-web
           path: frontend-web
 
+      # ----------------------------------------------------------
+      # Node.js
+      # ----------------------------------------------------------
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 22.12.0
           cache: npm
           cache-dependency-path: |
             frontend-desktop/package-lock.json
             frontend-web/package-lock.json
 
+      # ----------------------------------------------------------
+      # Installation frontend Web
+      # ----------------------------------------------------------
+
       - name: Install web dependencies
         working-directory: frontend-web
         run: npm ci
+
+      # ----------------------------------------------------------
+      # Build frontend Web
+      # ----------------------------------------------------------
 
       - name: Build web
         working-directory: frontend-web
         run: npm run build
 
+      # ----------------------------------------------------------
+      # Vérification frontend
+      # ----------------------------------------------------------
+
       - name: Verify web build
-        run: test -d frontend-web/dist
+        run: |
+          test -d frontend-web/dist
+          echo "Frontend web build found successfully."
+
+      # ----------------------------------------------------------
+      # Vérification icônes
+      # ----------------------------------------------------------
 
       - name: Verify icons
         working-directory: frontend-desktop
         run: |
           test -f build/icon.png
           test -f build/icon.ico
+          echo "Desktop icons found successfully."
+
+      # ----------------------------------------------------------
+      # Installation Desktop
+      # ----------------------------------------------------------
 
       - name: Install desktop dependencies
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild native modules
-        working-directory: frontend-desktop
-        run: npx @electron/rebuild -f -w better-sqlite3
+      # ----------------------------------------------------------
+      # Build + publication R2
+      # ----------------------------------------------------------
 
-      - name: Build Linux
-        working-directory: frontend-desktop
-        run: npm run build:linux
-
-      - name: Publish Linux to R2
+      - name: Build and publish Linux to R2
         working-directory: frontend-desktop
         run: npx electron-builder --linux --publish always
         env:
           CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-      - name: Show artifacts
+      # ----------------------------------------------------------
+      # Affichage des fichiers générés
+      # ----------------------------------------------------------
+
+      - name: Show Linux artifacts
         run: |
+          echo "Linux artifacts:"
           ls -lh frontend-desktop/dist
