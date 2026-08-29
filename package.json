@@ -4,48 +4,69 @@
   "description": "Finance Pro Desktop est une application multiplateforme Windows/Linux basée sur Electron, intégrant l’interface web Finance Pro et un moteur de stockage local SQLite pour assurer la continuité des opérations hors connexion, avec synchronisation des données lorsque la connexion est disponible.",
   "main": "main.js",
   "author": "ONG Finance Pro",
+
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never"
+    "build:linux": "electron-builder --linux --publish never",
+    "postinstall": "electron-builder install-app-deps"
   },
+
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
     "electron": "^33.4.11",
     "electron-builder": "^26.15.3",
     "png-to-ico": "^3.0.2"
   },
+
   "dependencies": {
     "better-sqlite3": "^11.0.0"
   },
+
   "build": {
     "appId": "com.ongfinancepro.desktop",
     "productName": "Finance Pro",
     "copyright": "Copyright 2026 Finance Pro",
+
     "files": [
       "main.js",
       "preload.js",
       "src/**/*"
     ],
+
     "extraResources": [
       {
         "from": "../frontend-web/dist",
         "to": "frontend-web/dist"
       }
     ],
+
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
+
+    "publish": {
+      "provider": "r2",
+      "accountId": "6a3dfa1e4c9e48b780d4ae56e8c0c780",
+      "bucket": "financepro-updates",
+      "path": "v1",
+      "channel": "latest",
+      "publicUrl": "https://pub-6f43f42523b44ce99c642453363561ab.r2.dev/v1"
+    },
+
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico"
     },
+
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -53,11 +74,14 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Finance Pro"
     },
+
     "linux": {
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "category": "Office",
