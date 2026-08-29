@@ -8,8 +8,7 @@
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never",
-    "postinstall": "electron-builder install-app-deps"
+    "build:linux": "electron-builder --linux --publish never"
   },
 
   "devDependencies": {
@@ -47,21 +46,18 @@
     },
 
     "publish": {
-      "provider": "r2",
-      "accountId": "6a3dfa1e4c9e48b780d4ae56e8c0c780",
+      "provider": "s3",
       "bucket": "financepro-updates",
       "path": "v1",
-      "channel": "latest",
-      "publicUrl": "https://pub-6f43f42523b44ce99c642453363561ab.r2.dev/v1"
+      "region": "auto",
+      "endpoint": "https://6a3dfa1e4c9e48b780d4ae56e8c0c780.r2.cloudflarestorage.com"
     },
 
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "icon": "build/icon.ico"
@@ -79,9 +75,7 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ],
       "category": "Office",

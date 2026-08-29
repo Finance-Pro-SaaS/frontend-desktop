@@ -128,8 +128,8 @@ jobs:
         working-directory: frontend-desktop
         run: npx electron-builder --win --publish always
         env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       # ----------------------------------------------------------
@@ -237,8 +237,8 @@ jobs:
         working-directory: frontend-desktop
         run: npx electron-builder --linux --publish always
         env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
       # ----------------------------------------------------------
       # Affichage des fichiers générés
