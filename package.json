@@ -22,7 +22,7 @@
   "build": {
     "appId": "com.ongfinancepro.desktop",
     "productName": "Finance Pro",
-    "copyright": "Copyright 2026 Finance Pro",
+    "copyright": "Copyright 2026 Finance Pro - Tous droit reservé",
     "files": [
       "main.js",
       "preload.js",
