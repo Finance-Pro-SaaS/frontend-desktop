@@ -11,8 +11,10 @@
     "publish": "electron-builder --publish always"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "electron": "^33.4.11",
-    "electron-builder": "^27.0.0"
+    "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0"
@@ -21,25 +23,21 @@
     "appId": "com.ongfinancepro.desktop",
     "productName": "Finance Pro",
     "copyright": "Copyright 2026 Finance Pro",
-
     "files": [
       "main.js",
       "preload.js",
       "src/**/*"
     ],
-
     "extraResources": [
       {
         "from": "../frontend-web/dist",
         "to": "frontend-web/dist"
       }
     ],
-
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
-
     "win": {
       "target": [
         {
@@ -51,7 +49,6 @@
       ],
       "icon": "build/icon.ico"
     },
-
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -59,7 +56,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Finance Pro"
     },
-
     "linux": {
       "target": [
         {
@@ -72,8 +68,7 @@
       "category": "Office",
       "icon": "build/icon.png"
     },
-
-   "publish": {
+    "publish": {
       "provider": "r2",
       "accountId": "6a3dfa1e4c9e48b780d4ae56e8c0c780",
       "bucket": "financepro-updates",

@@ -16,17 +16,17 @@ env:
 jobs:
 
   build-windows:
-    name: Build Windows Desktop
+    name: Build Windows
     runs-on: windows-latest
 
     steps:
 
-      - name: Checkout frontend-desktop
+      - name: Checkout desktop
         uses: actions/checkout@v4
         with:
           path: frontend-desktop
 
-      - name: Checkout frontend-web
+      - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
@@ -38,93 +38,74 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            frontend-web/package-lock.json
             frontend-desktop/package-lock.json
+            frontend-web/package-lock.json
 
-      - name: Show versions
-        shell: pwsh
-        run: |
-          node --version
-          npm --version
-
-      - name: Verify desktop icons
-        shell: pwsh
-        working-directory: frontend-desktop
-        run: |
-          if (-not (Test-Path "build/icon.ico")) {
-            Write-Error "Missing build/icon.ico"
-            exit 1
-          }
-
-          if (-not (Test-Path "build/icon.png")) {
-            Write-Error "Missing build/icon.png"
-            exit 1
-          }
-
-          Write-Host "Windows icon:"
-          Get-Item "build/icon.ico" | Select-Object Name, Length
-
-          Write-Host "Linux icon:"
-          Get-Item "build/icon.png" | Select-Object Name, Length
-
-      - name: Install frontend-web dependencies
+      - name: Install web dependencies
         working-directory: frontend-web
         run: npm ci
 
-      - name: Build frontend-web
+      - name: Build web
         working-directory: frontend-web
         run: npm run build
 
-      - name: Verify frontend-web build
+      - name: Verify web build
         shell: pwsh
         run: |
           if (-not (Test-Path "frontend-web/dist")) {
-            Write-Error "frontend-web/dist was not generated."
-            exit 1
+            throw "frontend-web/dist does not exist"
+          }
+
+      - name: Verify icons
+        working-directory: frontend-desktop
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "build/icon.ico")) {
+            throw "build/icon.ico is missing"
+          }
+
+          if (-not (Test-Path "build/icon.png")) {
+            throw "build/icon.png is missing"
           }
 
       - name: Install desktop dependencies
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild better-sqlite3 for Electron
+      - name: Rebuild native modules
         working-directory: frontend-desktop
-        run: npx electron-rebuild -f -w better-sqlite3
+        run: npx @electron/rebuild -f -w better-sqlite3
 
-      - name: Build and publish Windows
+      - name: Build Windows
         working-directory: frontend-desktop
-        run: npm run publish
+        run: npm run build:win
+
+      - name: Publish Windows to R2
+        working-directory: frontend-desktop
+        run: npx electron-builder --win --publish always
         env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
 
-      - name: Verify Windows artifacts
+      - name: Show artifacts
         shell: pwsh
         run: |
-          $files = Get-ChildItem "frontend-desktop/dist" -ErrorAction SilentlyContinue
-
-          if (-not $files) {
-            Write-Error "No artifacts were generated."
-            exit 1
-          }
-
-          $files | Select-Object Name, Length
+          Get-ChildItem frontend-desktop/dist
 
 
   build-linux:
-    name: Build Linux Desktop
+    name: Build Linux
     runs-on: ubuntu-latest
 
     steps:
 
-      - name: Checkout frontend-desktop
+      - name: Checkout desktop
         uses: actions/checkout@v4
         with:
           path: frontend-desktop
 
-      - name: Checkout frontend-web
+      - name: Checkout web
         uses: actions/checkout@v4
         with:
           repository: Finance-Pro-SaaS/frontend-web
@@ -136,53 +117,45 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            frontend-web/package-lock.json
             frontend-desktop/package-lock.json
+            frontend-web/package-lock.json
 
-      - name: Show versions
-        run: |
-          node --version
-          npm --version
+      - name: Install web dependencies
+        working-directory: frontend-web
+        run: npm ci
 
-      - name: Verify desktop icons
+      - name: Build web
+        working-directory: frontend-web
+        run: npm run build
+
+      - name: Verify web build
+        run: test -d frontend-web/dist
+
+      - name: Verify icons
         working-directory: frontend-desktop
         run: |
           test -f build/icon.png
           test -f build/icon.ico
 
-          echo "Icons found:"
-          ls -lh build/icon.*
-
-      - name: Install frontend-web dependencies
-        working-directory: frontend-web
-        run: npm ci
-
-      - name: Build frontend-web
-        working-directory: frontend-web
-        run: npm run build
-
-      - name: Verify frontend-web build
-        run: test -d frontend-web/dist
-
       - name: Install desktop dependencies
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild better-sqlite3 for Electron
+      - name: Rebuild native modules
         working-directory: frontend-desktop
-        run: npx electron-rebuild -f -w better-sqlite3
+        run: npx @electron/rebuild -f -w better-sqlite3
 
-      - name: Build and publish Linux
+      - name: Build Linux
         working-directory: frontend-desktop
-        run: npm run publish
+        run: npm run build:linux
+
+      - name: Publish Linux to R2
+        working-directory: frontend-desktop
+        run: npx electron-builder --linux --publish always
         env:
-          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
-          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
-          VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
-      - name: Verify Linux artifacts
+      - name: Show artifacts
         run: |
-          test -n "$(find frontend-desktop/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
-
-          echo "Linux artifacts:"
           ls -lh frontend-desktop/dist
