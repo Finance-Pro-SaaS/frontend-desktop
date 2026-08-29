@@ -7,11 +7,12 @@
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never"
+    "build:linux": "electron-builder --linux --publish never",
+    "publish": "electron-builder --publish always"
   },
   "devDependencies": {
-    "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron": "^33.4.11",
+    "electron-builder": "^27.0.0"
   },
   "dependencies": {
     "better-sqlite3": "^11.0.0"
@@ -20,34 +21,65 @@
     "appId": "com.ongfinancepro.desktop",
     "productName": "Finance Pro",
     "copyright": "Copyright 2026 Finance Pro",
+
     "files": [
       "main.js",
       "preload.js",
-      "src/**/*",
-      "build/icon.png"
+      "src/**/*"
     ],
-    "publish":{
-      "provider": "s3",
-      "endpoint": "https://6a3dfa1e4c9e48b780d4ae56e8c0c780.r2.cloudflarestorage.com",
-      "bucket": "financepro-updates",
-      "region": "auto",
-      "path": "/v1",
-      "acl": "public-read",
-      "channel": "latest"
-    },
+
     "extraResources": [
       {
         "from": "../frontend-web/dist",
         "to": "frontend-web/dist"
       }
     ],
+
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico"
     },
+
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Finance Pro"
+    },
+
     "linux": {
-      "target": "AppImage",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Office",
       "icon": "build/icon.png"
+    },
+
+   "publish": {
+      "provider": "r2",
+      "accountId": "6a3dfa1e4c9e48b780d4ae56e8c0c780",
+      "bucket": "financepro-updates",
+      "path": "v1",
+      "channel": "latest",
+      "publicUrl": "https://pub-6f43f42523b44ce99c642453363561ab.r2.dev/v1"
     }
   }
 }

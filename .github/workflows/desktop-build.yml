@@ -2,26 +2,25 @@ name: Finance Pro Desktop Build
 
 on:
   workflow_dispatch:
+
   push:
     tags:
-      - 'v*.*'
+      - "v*.*.*"
 
 permissions:
-  contents: write
+  contents: read
 
 env:
-  # URL du backend en production. Les apps desktop installées chez les
-  # utilisateurs n'ont PAS de serveur local — sans ceci le build utilise le
-  # défaut du code (http://localhost:8000/api) et rien ne fonctionne une fois installé.
   VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
-  AWS_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
 
 jobs:
+
   build-windows:
     name: Build Windows Desktop
     runs-on: windows-latest
+
     steps:
+
       - name: Checkout frontend-desktop
         uses: actions/checkout@v4
         with:
@@ -38,12 +37,35 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend-web/package-lock.json
+          cache-dependency-path: |
+            frontend-web/package-lock.json
+            frontend-desktop/package-lock.json
 
-      - name: Show tool versions
+      - name: Show versions
+        shell: pwsh
         run: |
           node --version
           npm --version
+
+      - name: Verify desktop icons
+        shell: pwsh
+        working-directory: frontend-desktop
+        run: |
+          if (-not (Test-Path "build/icon.ico")) {
+            Write-Error "Missing build/icon.ico"
+            exit 1
+          }
+
+          if (-not (Test-Path "build/icon.png")) {
+            Write-Error "Missing build/icon.png"
+            exit 1
+          }
+
+          Write-Host "Windows icon:"
+          Get-Item "build/icon.ico" | Select-Object Name, Length
+
+          Write-Host "Linux icon:"
+          Get-Item "build/icon.png" | Select-Object Name, Length
 
       - name: Install frontend-web dependencies
         working-directory: frontend-web
@@ -56,48 +78,47 @@ jobs:
       - name: Verify frontend-web build
         shell: pwsh
         run: |
-          if (-not (Test-Path "frontend-web/dist")) { 
-            Write-Error "frontend-web/dist was not generated." 
-            exit 1 
+          if (-not (Test-Path "frontend-web/dist")) {
+            Write-Error "frontend-web/dist was not generated."
+            exit 1
           }
-          Get-ChildItem "frontend-web/dist" | Select-Object Name
 
       - name: Install desktop dependencies
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild native modules for Electron
+      - name: Rebuild better-sqlite3 for Electron
         working-directory: frontend-desktop
-        run: npx electron-builder install-app-deps
-        env:
-          npm_config_target: 31.2.0
-          npm_config_runtime: electron
-          npm_config_disturl: https://electronjs.org/headers
-          npm_config_build_from_source: true
+        run: npx electron-rebuild -f -w better-sqlite3
 
-      - name: Build and Publish Windows installer to R2
+      - name: Build and publish Windows
         working-directory: frontend-desktop
         run: npm run publish
         env:
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Verify Windows installer
+      - name: Verify Windows artifacts
         shell: pwsh
         run: |
-          $files = Get-ChildItem "frontend-desktop/dist/*.exe" -ErrorAction SilentlyContinue
-          if (-not $files) { 
-            Write-Error "No Windows installer was generated in frontend-desktop/dist." 
-            exit 1 
+          $files = Get-ChildItem "frontend-desktop/dist" -ErrorAction SilentlyContinue
+
+          if (-not $files) {
+            Write-Error "No artifacts were generated."
+            exit 1
           }
-          $files | Select-Object FullName, Length
+
+          $files | Select-Object Name, Length
+
 
   build-linux:
     name: Build Linux Desktop
     runs-on: ubuntu-latest
+
     steps:
+
       - name: Checkout frontend-desktop
         uses: actions/checkout@v4
         with:
@@ -114,12 +135,23 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: frontend-web/package-lock.json
+          cache-dependency-path: |
+            frontend-web/package-lock.json
+            frontend-desktop/package-lock.json
 
-      - name: Show tool versions
+      - name: Show versions
         run: |
           node --version
           npm --version
+
+      - name: Verify desktop icons
+        working-directory: frontend-desktop
+        run: |
+          test -f build/icon.png
+          test -f build/icon.ico
+
+          echo "Icons found:"
+          ls -lh build/icon.*
 
       - name: Install frontend-web dependencies
         working-directory: frontend-web
@@ -136,22 +168,21 @@ jobs:
         working-directory: frontend-desktop
         run: npm ci
 
-      - name: Rebuild native modules for Electron
+      - name: Rebuild better-sqlite3 for Electron
         working-directory: frontend-desktop
-        run: npx electron-builder install-app-deps
-        env:
-          npm_config_target: 31.2.0
-          npm_config_runtime: electron
-          npm_config_disturl: https://electronjs.org/headers
-          npm_config_build_from_source: true
+        run: npx electron-rebuild -f -w better-sqlite3
 
-      - name: Build and Publish Linux AppImage to R2
+      - name: Build and publish Linux
         working-directory: frontend-desktop
         run: npm run publish
         env:
+          CF_R2_ACCESS_KEY_ID: ${{ secrets.R2_AWS_ACCESS_KEY_ID }}
+          CF_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_AWS_SECRET_ACCESS_KEY }}
           VITE_API_BASE_URL: ${{ env.VITE_API_BASE_URL }}
-          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Verify Linux package
-        run: test -n "$(find frontend-desktop/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+      - name: Verify Linux artifacts
+        run: |
+          test -n "$(find frontend-desktop/dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+
+          echo "Linux artifacts:"
+          ls -lh frontend-desktop/dist
