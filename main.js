@@ -7,8 +7,10 @@ const { autoUpdater } = require('electron-updater')
 
 const isDev = !app.isPackaged
 
+let win = null
+
 function createWindow() {
-  const win = new BrowserWindow({
+  win = new BrowserWindow({
     width: 1280,
     height: 800,
     icon: path.join(__dirname, 'build/icon.png'),
