@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  VITE_API_BASE_URL: https://finance-pro-xv5r.onrender.com/api
+  VITE_API_BASE_URL: https://financepro-7rax.onrender.com/api
 
 jobs:
 
