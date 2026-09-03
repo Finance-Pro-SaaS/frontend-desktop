@@ -1,6 +1,6 @@
 {
   "name": "Finance-Pro-Desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Finance Pro Desktop est une application multiplateforme Windows/Linux basée sur Electron, intégrant l’interface web Finance Pro et un moteur de stockage local SQLite pour assurer la continuité des opérations hors connexion, avec synchronisation des données lorsque la connexion est disponible.",
   "main": "main.js",
   "author": "ONG Finance Pro",
