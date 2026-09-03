@@ -6,8 +6,8 @@
   "author": "ONG Finance Pro",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win --publish never",
-    "build:linux": "electron-builder --linux --publish never"
+    "build:win": "npm --prefix ../frontend-web run build:electron && electron-builder --win --publish never",
+    "build:linux": "npm --prefix ../frontend-web run build:electron && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
