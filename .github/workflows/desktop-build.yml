@@ -53,7 +53,7 @@ jobs:
 
       - name: Build Web
         working-directory: frontend-web
-        run: npm run build
+        run: npm run build:electron
 
       - name: Prepare Web build for Electron
         shell: pwsh
@@ -170,7 +170,7 @@ jobs:
 
       - name: Build Web
         working-directory: frontend-web
-        run: npm run build
+        run: npm run build:electron
 
       - name: Prepare Web build for Electron
         run: |
