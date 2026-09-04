@@ -55,6 +55,14 @@ jobs:
         working-directory: frontend-web
         run: npm run build
 
+      - name: Prepare Web build for Electron
+        shell: pwsh
+        run: |
+          $source = Join-Path $PWD "frontend-web/dist"
+          $target = Join-Path (Split-Path $PWD -Parent) "frontend-web/dist"
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Copy-Item "$source/*" $target -Recurse -Force
+
       - name: Verify Web build
         shell: pwsh
         run: |
@@ -64,6 +72,11 @@ jobs:
 
           if (-not (Test-Path "frontend-web/dist/index.html")) {
             throw "frontend-web/dist/index.html does not exist"
+          }
+
+          $packagingPath = Join-Path (Split-Path $PWD -Parent) "frontend-web/dist/index.html"
+          if (-not (Test-Path $packagingPath)) {
+            throw "Electron source frontend is missing: $packagingPath"
           }
 
           Write-Host "Frontend Web build OK."
@@ -159,9 +172,15 @@ jobs:
         working-directory: frontend-web
         run: npm run build
 
+      - name: Prepare Web build for Electron
+        run: |
+          mkdir -p ../frontend-web/dist
+          cp -R frontend-web/dist/. ../frontend-web/dist/
+
       - name: Verify Web build
         run: |
           test -d frontend-web/dist
+          test -f ../frontend-web/dist/index.html
           echo "Frontend Web build OK."
 
       - name: Verify icons
