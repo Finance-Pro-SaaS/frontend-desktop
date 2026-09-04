@@ -1,4 +1,6 @@
 const { app, BrowserWindow, dialog } = require('electron')
+const fs = require('fs')
+const { pathToFileURL } = require('url')
 const path = require('path')
 
 const { initDatabase, closeDatabase } = require('./src/database')
@@ -31,14 +33,25 @@ function createWindow() {
     // En production :
     // chargement du frontend Web embarqué
     // dans resources/frontend-web/dist.
-    const indexPath = path.join( 
-      process.resourcesPath, 
-      'frontend-web',
-      'dist',
-      'index.html'
+    const candidatePaths = [
+      path.join(process.resourcesPath, 'frontend-web', 'dist', 'index.html'),
+      path.join(__dirname, 'frontend-web', 'dist', 'index.html'),
+    ]
+    const indexPath = candidatePaths.find((candidatePath) =>
+      fs.existsSync(candidatePath)
     )
 
-    win.loadFile(indexPath)
+    if (!indexPath) {
+      const expectedPaths = candidatePaths.join('\n')
+      console.error('Frontend embarqué introuvable. Chemins testés:\n' + expectedPaths)
+      dialog.showErrorBox(
+        'Finance Pro ne peut pas démarrer',
+        `Le frontend embarqué est absent.\n\nChemins testés :\n${expectedPaths}`
+      )
+      return win
+    }
+
+    win.loadURL(pathToFileURL(indexPath).toString())
   }
 
 

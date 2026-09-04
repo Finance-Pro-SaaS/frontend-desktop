@@ -62,6 +62,10 @@ jobs:
             throw "frontend-web/dist does not exist"
           }
 
+          if (-not (Test-Path "frontend-web/dist/index.html")) {
+            throw "frontend-web/dist/index.html does not exist"
+          }
+
           Write-Host "Frontend Web build OK."
 
       - name: Verify icons
@@ -92,7 +96,25 @@ jobs:
             throw "Version mismatch."
           }
 
-      - name: Build and publish Windows to R2
+      - name: Build Windows package
+        run: npx electron-builder --win --publish never
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Verify packaged frontend
+        shell: pwsh
+        run: |
+          $indexPath = "dist/win-unpacked/resources/frontend-web/dist/index.html"
+
+          if (-not (Test-Path $indexPath)) {
+            throw "Packaged frontend is missing: $indexPath"
+          }
+
+          Write-Host "Packaged frontend OK: $indexPath"
+
+      - name: Publish Windows to R2
         run: npx electron-builder --win --publish always
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
